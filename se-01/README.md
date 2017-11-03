@@ -18,7 +18,7 @@ Test #2: true
 Test #3: true
 ```
 
-## 논의
-- Floyd's cycle-finding algorithm 사용
+## 설명 및 논의
+- Floyd's cycle-finding algorithm 사용 (소스코드 주석문에 별도 요약 설명)
   * https://en.wikipedia.org/wiki/Cycle_detection#Tortoise_and_hare
-- 구현이 매우 간단함
+- 위 알고리즘을 알고 있으면, 구현이 매우 간단함

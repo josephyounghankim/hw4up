@@ -35,7 +35,7 @@ ast.Query()
                 ast.Term(term='애니팡')
 ```
 
-## 논의
+## 설명 및 논의
 - 제출한 과제물은 ast.BoolOp 아래 ast.Term instance들만 변환했음.
 - 이를 보다 일반화 시키는 것이 원래 과제 목적이라면 다시 작성해야 함.
 - 보기 좋은 console.log 출력을 위해 instance에 depth 값을 갖도록 함.
