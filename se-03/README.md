@@ -3,8 +3,9 @@
 ## 정의
 Finding the best candidates
 
-## 구현
+## 환경
 - javascript(ES6) 사용
+- nodejs 8.6 이상
 
 ## 실행방법
 - cd se-03
@@ -12,7 +13,29 @@ Finding the best candidates
 
 ## 실행결과
 ```
+> node index.js 당기순이익
+재무제표/IFRS/연결/제조업/손익계산서/당기순이익 (depth:6)
+재무제표/IFRS/개별/제조업/손익계산서/당기순이익 (depth:6)
 
+> node index.js 건물
+재무제표/IFRS/연결/제조업/재무상태표/자산/비유동자산/건물 (depth:8)
+재무제표/IFRS/개별/제조업/재무상태표/자산/비유동자산/건물 (depth:8)
+
+> node index.js 유형자산 건물
+재무제표/IFRS/연결/제조업/재무상태표/자산/비유동자산/유형자산/건물 (depth:9)
+재무제표/IFRS/개별/제조업/재무상태표/자산/비유동자산/유형자산/건물 (depth:9)
+
+> node index.js 연결 유형자산 건물
+재무제표/IFRS/연결/제조업/재무상태표/자산/비유동자산/유형자산/건물 (depth:9)
+
+> node index.js 손익계산서
+null
+
+> node index.js 건물 유형자산 연결
+재무제표/IFRS/연결/제조업/재무상태표/자산/비유동자산/유형자산/건물 (depth:9)
+
+> node index.js 건물 주식
+null
 ```
 
 ## 논의
