@@ -19,3 +19,6 @@
   * nodejs 설치 프로그램 다운로드: https://nodejs.org/en/download/
 - cd se-01 (또는 se-02 또는 se-03)
 - node index.js [파라미터]...
+
+## 기타
+- *소스코드 설명을 위해서 주석을 과도히 사용했더니 가독성이 떨어짐*
