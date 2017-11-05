@@ -70,10 +70,51 @@ ast.Query()
                     ast.Term(term='애니팡')
                 ast.FieldAssign(field='content')
                     ast.Term(term='사천성')
+
+
+*****************************
+Conversion Test 3 (ast5 -> ast6)
+
+
+ast5 ========================
+ast.Query()
+    ast.QueryExpr()
+        ast.BoolOp()
+            ast.And()
+            ast.Term(term='선데이토즈')
+            ast.BoolOp()
+                ast.Or()
+                ast.Term(term='애니팡')
+                ast.Term(term='사천성')
+                ast.OtherOp()
+                    ast.Dummy()
+                    ast.Term(term='슈퍼맨')
+                    ast.Term(term='배트맨')
+
+
+ast6 ========================
+ast.Query()
+    ast.QueryExpr()
+        ast.BoolOp()
+            ast.And()
+            ast.FieldAssign(field='company')
+                ast.Term(term='선데이토즈')
+            ast.FieldAssign(field='title')
+                ast.Term(term='선데이토즈')
+            ast.BoolOp()
+                ast.Or()
+                ast.FieldAssign(field='content')
+                    ast.Term(term='애니팡')
+                ast.FieldAssign(field='content')
+                    ast.Term(term='사천성')
+                ast.OtherOp()
+                    ast.Dummy()
+                    ast.Term(term='슈퍼맨배트맨')
 ```
 
 ## 설명 및 논의
 - 제출한 과제물은 ast.BoolOp 아래 있는 ast.Term instance들을 변환했음.
 - ast.BoolOp 안에 자식 ast.BoolOp을 갖는 경우도 재귀적으로 변환됨.
+- visitor pattern을 이용해서 ast.BoolOp 외에도 다른 종류의 operation에도 적용되도록 확장함.
 - 보기 좋은 console.log 출력을 위해 instance에 depth 값을 갖도록 함.
 - 특정 term이 회사인지 아닌지는 db 검색을 가정한 mock 함수 `isCompany`를 만들어 사용함.
