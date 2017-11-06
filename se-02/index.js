@@ -14,6 +14,7 @@ class Node {
     console.log(`${indent}ast.${this.constructor.name}(${prop?(prop+"="+"'"+this[prop]+"'"):''})`)
     this[child] && this[child].print && this[child].print()
   }
+  accept(visitor) { visitor.visit(this) }
 }
 
 // 주요 Node class들 정의
@@ -30,7 +31,6 @@ class QueryExpr extends Node {
 // Operator들의 base class, accept method를 가짐
 class BaseOp extends Node {
   constructor() { super() }
-  accept(visitor) { visitor.visit(this) }
 }
 
 // And, Or operation class
@@ -80,69 +80,93 @@ class Term extends Node {
   print() { super.print('term') }
 }
 
-// visitor pattern 활용
-// visitor class 정의
-class conversionVisitor {
-  // visit method
-  // java와는 달리 javascript에서는 인자의 type에 따른 동일 이름의 method를 만들 수가 없다.
-  // 그러므로 하나의 visit 함수에서 분기 처리함.
-  visit(anyOp) {
-    if (!anyOp || !anyOp.values) return
-    if (anyOp instanceof BoolOp) anyOp.values = this.convertAtBoolOp(anyOp)
-    else if (anyOp instanceof OtherOp) anyOp.values = this.convertAtOtherOp(anyOp)
-  }
 
-  // BoolOp에 대한 변환
-  convertAtBoolOp(boolOp) {
+///////////////////////////////////////////////////////////////////////////
+// visitor base class 정의
+class NodeVisitor {
+  visit(node) {
+    if (!node) return null  // just in case
+
+    // node에 자식 body node 있으면 여기에 대해 재귀호출
+    if (node.body) node.body = this.visit(node.body)
+
+    // node에 자식 expr node 있으면 여기에 대해 재귀호출
+    if (node.expr) node.expr = this.visit(node.expr)
+
+    // node에 values가 있으면 여기에 대해 재귀호출
+    if (node.values) {
+      let results = []
+      node.values.forEach(v => results = results.concat(this.visit(v)))
+      node.values = results
+    }
+
+    // node 자신에 대해 visit method 호출
+    // node type에 알맞은 visit method가 존재하면 이를 호출한다.
+    // visit method가 존재하지 않으면 원래 node를 리턴한다.
+    let visit_type = `visit_${node.constructor.name}`
+    return this[visit_type] ? this[visit_type](node) : node
+  }
+}
+
+// CompanyNameResolver class 정의
+class CompanyNameResolver extends NodeVisitor {
+  // node type 별 visit method
+  visit_Term(node) {
     let values = []
-    boolOp.values.forEach(value => {
-      if (value.constructor.name === 'Term') {
-        if (['구글','애플','선데이토즈'].indexOf(value.term) > -1) {
-          // value.term이 회사명이면
-          values.push(new FieldAssign('company', new Term(value.term, value.depth+1), value.depth))
-          values.push(new FieldAssign('title', new Term(value.term, value.depth+1), value.depth))
-        }
-        else {
-          // value.term이 일반 단어라면
-          values.push(new FieldAssign('content', new Term(value.term, value.depth+1), value.depth))
-        }
-      }
-      else {
-        // value는 중첩된 baseOp라면 일종의 재귀호출을 한다!
-        value.accept(new conversionVisitor())
-        values.push(value)
-      }
-    })
-    return values  // 새로운 values를 리턴
+    if (['구글','애플','선데이토즈'].indexOf(node.term) > -1) {
+      // node.term이 회사명이면
+      values.push(new FieldAssign('company', new Term(node.term, node.depth+1), node.depth))
+      values.push(new FieldAssign('title', new Term(node.term, node.depth+1), node.depth))
+    }
+    else {
+      // node.term이 일반 단어라면
+      values.push(new FieldAssign('content', new Term(node.term, node.depth+1), node.depth))
+    }
+    return values
   }
+}
 
-  // OtherOp에 대한 변환
-  convertAtOtherOp(otherOp) {
-    let values = []
-    // 변환 내용은 operator에 따라 달라질 수 있음.
-    // values = otherOp.values   // bypass (원래 내용 그대로 변환 없이 통과)
-
-    // 만약 여러개의 term을 하나로 합치는 변환을 한다고 가정하면...
-    let mergedTerm = ''
-    otherOp.values.forEach(value => {
-      if (value.constructor.name === 'Term') mergedTerm += value.term
-      else {
-        // value는 중첩된 baseOp라면 일종의 재귀호출을 한다!
-        value.accept(new conversionVisitor())
-        values.push(value)
-      }
-    })
-    values.push(new Term(mergedTerm, otherOp.depth+1)) // 합쳐진 term
-
-    return values  // 기존 Op node에 새로운 values를 세팅
+// SomeResolver class 정의
+// 변환 기능:
+// 1. BoolOp에서 And <-> Or 토글 맞교환.
+// 2. OtherOp에서 And, Or -> Dummy로 강제 변환
+// 3. Term에서 term 문자열 거꾸로 변환
+class SomeResolver extends NodeVisitor {
+  // node type 별 visit method
+  visit_BoolOp(node) {
+    // 1. BoolOp에서 And <-> Or 토글 맞교환.
+    if (node.op instanceof And) node.op = new Or(node.op.depth)
+    else if (node.op instanceof Or) node.op = new And(node.op.depth)
+    return node
   }
-
+  visit_OtherOp(node) {
+    // 2. OtherOp에서 And, Or -> Dummy로 강제 변환
+    if (node.op instanceof And || node.op instanceof Or) node.op = new Dummy(node.op.depth)
+    return node
+  }
+  visit_Term(node) {
+    // 3. Term에서 term 문자열 거꾸로 변환
+    node.term = node.term.split('').reverse().join('')
+    return node
+  }
 }
 
 // AST transformation (in-place)
-const convert = (query) => {
-  // Query > QueryExpr 아래에 있는 BoolOp부터 시작함
-  query.body.expr.accept(new conversionVisitor())
+const convert1 = (query) => {
+  query.accept(new CompanyNameResolver())
+  return query  // 변환된 ast 리턴
+}
+
+// AST transformation (in-place)
+const convert2 = (query) => {
+  query.accept(new SomeResolver())
+  return query  // 변환된 ast 리턴
+}
+
+// AST transformation (in-place)
+const convert3 = (query) => {
+  query.accept(new CompanyNameResolver())
+  query.accept(new SomeResolver())
   return query  // 변환된 ast 리턴
 }
 
@@ -153,32 +177,41 @@ console.log('\n\n*****************************')
 
 ////////////////////////////////////////////////
 // Conversion Test 1 (ast1 -> ast2)
-console.log('Conversion Test 1 (ast1 -> ast2)\n\n')
+console.log('Conversion Test 1 (CompanyNameResolver)\n\n')
 
 // Create ast1
 const ast1 = new Query(
   new QueryExpr(
     new BoolOp(
-      new Or(),
-      [new Term('선데이토즈'), new Term('애니팡')]
+      new And(),
+      [
+        new Term('선데이토즈'),
+        new BoolOp(
+          new Or(4),
+          [
+            new Term('애니팡',4),
+            new Term('사천성',4)
+          ], 3
+        )
+      ]
     )
   )
 )
+
 console.log('ast1 ========================')
 ast1.print()
 
-const ast2 = convert(ast1)  // convert!
+const ast2 = convert1(ast1)  // convert!
 
 console.log('\n\nast2 ========================')
 ast2.print()
-
 
 console.log('\n\n*****************************')
 
 
 ////////////////////////////////////////////////
 // Conversion Test 2 (ast3 -> ast4)
-console.log('Conversion Test 2 (ast3 -> ast4)\n\n')
+console.log('Conversion Test 2 (SomeResolver)\n\n')
 
 // Create ast3  (숫자 인자는 node의 depth를 나타냄, 기본값과 다른 depth만 명시적으로 지정)
 const ast3 = new Query(
@@ -201,11 +234,10 @@ const ast3 = new Query(
 console.log('ast3 ========================')
 ast3.print()
 
-const ast4 = convert(ast3)   // convert!
+const ast4 = convert2(ast3)   // convert!
 
 console.log('\n\nast4 ========================')
 ast4.print()
-
 
 
 console.log('\n\n*****************************')
@@ -213,9 +245,9 @@ console.log('\n\n*****************************')
 
 ////////////////////////////////////////////////
 // Conversion Test 3 (ast5 -> ast6)
-console.log('Conversion Test 3 (ast5 -> ast6)\n\n')
+console.log('Conversion Test 3 (CompanyNameResolver, SomeResolver)\n\n')
 
-// Create ast3  (숫자 인자는 node의 depth를 나타냄, 기본값과 다른 depth만 명시적으로 지정)
+// Create ast5  (숫자 인자는 node의 depth를 나타냄, 기본값과 다른 depth만 명시적으로 지정)
 const ast5 = new Query(
   new QueryExpr(
     new BoolOp(
@@ -228,7 +260,7 @@ const ast5 = new Query(
             new Term('애니팡',4),
             new Term('사천성',4),
             new OtherOp(
-              new Dummy(5),
+              new And(5),
               [
                 new Term('슈퍼맨',5),
                 new Term('배트맨',5)
@@ -244,7 +276,7 @@ const ast5 = new Query(
 console.log('ast5 ========================')
 ast5.print()
 
-const ast6 = convert(ast5)   // convert!
+const ast6 = convert3(ast5)   // convert!
 
 console.log('\n\nast6 ========================')
 ast6.print()
